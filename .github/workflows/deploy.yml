@@ -1,0 +1,37 @@
+name: ML Deployment to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to ACR
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/diabetes-ml-app:latest .
+
+      - name: Push Docker image to ACR
+        run: |
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/diabetes-ml-app:latest
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name diabetes-ml-app \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --image ${{ secrets.ACR_NAME }}.azurecr.io/diabetes-ml-app:latest
